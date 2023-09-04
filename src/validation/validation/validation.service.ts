@@ -25,9 +25,11 @@ export class ValidationService {
     return this.agregateValidationResults(validationResults);
   }
 
-  private computeValidationResults(movements, checkPoints): ValidationResult[] {
+  private computeValidationResults(
+    movements: Movement[],
+    checkPoints: Checkpoint[],
+  ): ValidationResult[] {
     const validationResults: ValidationResult[] = [];
-    // let currentBalance = checkPoints[0].balance;
 
     for (let i = 0; i < checkPoints.length - 1; i++) {
       const movementsToValidate = movements.filter(
@@ -40,8 +42,6 @@ export class ValidationService {
         (total, movement) => total + movement.amount,
         0,
       );
-
-      //  currentBalance = cumulatedAmount;
 
       const validationResultForCheckPoint =
         this.getValidationResultForCheckpoint(
@@ -70,6 +70,10 @@ export class ValidationService {
       return { status: true };
     }
 
+    const message = this.getErrorMessage(
+      totalMovements,
+      expectedBalanceForPeriode,
+    );
     return {
       status: false,
       failReason: {
@@ -86,26 +90,28 @@ export class ValidationService {
 
   private getErrorMessage(totalOperations: number, balance: number): string {
     if (totalOperations < balance) {
-      return 'Une ou des opérations manquantes sur cette période';
+      return 'Opérations crédit manquantes ou opérations débit dupliquées';
     } else if (totalOperations > balance) {
-      return 'Le montant des opérations est supérieur au solde attendu';
+      return 'Opérations crédit dupliquées ou opérations débit manquantes';
     } else {
       return 'Une erreur lors de la validation des opérations';
     }
   }
 
   private getDuplicatedMovements(movements: Movement[]): Movement[] {
-    // check if an identical movement exists in the array at a different index then the current one
-    return movements.filter((movement, index, arr) => {
-      const currentIndex = arr.findIndex(
-        (m, i) =>
-          i !== index && // Ne pas comparer le mouvement avec lui-même
-          m.date === movement.date &&
-          m.wording === movement.wording &&
-          m.amount === movement.amount,
-      );
-      return currentIndex !== -1;
-    });
+    const readMovements = new Set();
+    const duplicatedMovements: Movement[] = [];
+
+    for (const movement of movements) {
+      const identityCriteriaKey = `${movement.date}-${movement.wording}-${movement.amount}`;
+      if (readMovements.has(identityCriteriaKey)) {
+        duplicatedMovements.push(movement);
+      } else {
+        readMovements.add(identityCriteriaKey);
+      }
+    }
+
+    return duplicatedMovements;
   }
 
   private agregateValidationResults(
