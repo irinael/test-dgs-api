@@ -1,10 +1,12 @@
-import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNotEmptyObject, IsString } from 'class-validator';
+import { ArrayMinSize, ArrayNotEmpty, IsArray, IsNotEmpty, IsNotEmptyObject, IsString, MinLength } from 'class-validator';
 import { Checkpoint } from './validation/model/checkpoint.dto';
 import { Movement } from './validation/model/movement.dto';
 
 export class ValidationRequest {
-  @ArrayNotEmpty()
+ 
+  @ArrayMinSize(1)
   movements: Movement[];
-  @ArrayNotEmpty()
+  
+  @ArrayMinSize(2)
   checkpoints: Checkpoint[];
 }
