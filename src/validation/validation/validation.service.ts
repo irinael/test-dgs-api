@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Movement } from './model/movement.dto';
 import { Checkpoint } from './model/checkpoint.dto';
-import { GlobalValidationResult } from './model/global-validation-result.dto';
+import { ValidationResponse } from './model/validation-response.dto';
 import { Status } from './model/status.enum';
 import { FailReason } from './model/fail-reason.dto';
 
@@ -12,7 +12,7 @@ export class ValidationService {
   validateMovements(
     movements: Movement[],
     checkPoints: Checkpoint[],
-  ): GlobalValidationResult {
+  ): ValidationResponse {
     const validationResults = this.computeValidationResults(
       movements,
       checkPoints,
@@ -32,57 +32,61 @@ export class ValidationService {
     const validationResults: ValidationResult[] = [];
 
     for (let i = 0; i < checkPoints.length - 1; i++) {
-      const movementsToValidate = movements.filter(
+      const movementsToValidateInPeriod = movements.filter(
         (movement) =>
           movement.date >= checkPoints[i].date &&
           movement.date < checkPoints[i + 1].date,
       );
 
-      const cumulatedAmount = movementsToValidate.reduce(
+      const cumulatedAmountInPeriod = movementsToValidateInPeriod.reduce(
         (total, movement) => total + movement.amount,
         0,
       );
 
-      const validationResultForCheckPoint =
-        this.getValidationResultForCheckpoint(
-          cumulatedAmount,
-          checkPoints[i + 1],
-          checkPoints[i],
-          movementsToValidate,
-        );
+      const validationResultForPeriod = this.computeValidationResultForPeriod(
+        movementsToValidateInPeriod,
+        cumulatedAmountInPeriod,
+        checkPoints[i],
+        checkPoints[i + 1],
+      );
 
-      validationResults.push(validationResultForCheckPoint);
+      validationResults.push(validationResultForPeriod);
     }
     return validationResults;
   }
 
-  private getValidationResultForCheckpoint(
-    totalMovements: number,
-    checkPoint: Checkpoint,
-    previousCheckPoint: Checkpoint,
+  private computeValidationResultForPeriod(
     movements: Movement[],
+    movementsAmount: number,
+    chackpointA: Checkpoint,
+    checkpointB: Checkpoint,
   ): ValidationResult {
-    const expectedBalanceForPeriode =
-      checkPoint.balance - previousCheckPoint.balance;
-    const isMatchingBalance = totalMovements === expectedBalanceForPeriode;
+    this.logger.log(
+      `Validating movements from : ${chackpointA.date} to ${checkpointB.date}`,
+    );
+    const expectedBalanceForPeriod = checkpointB.balance - chackpointA.balance;
+    const isMatchingBalance = movementsAmount === expectedBalanceForPeriod;
 
     if (isMatchingBalance) {
-      return { status: true };
+      this.logger.log(
+        `Movements from : ${chackpointA.date} to ${checkpointB.date} are valid`,
+      );
+      return { isOK: true };
     }
 
-    const message = this.getErrorMessage(
-      totalMovements,
-      expectedBalanceForPeriode,
+    this.logger.log(
+      `Movements from : ${chackpointA.date} to ${checkpointB.date} are not valid`,
     );
+
     return {
-      status: false,
+      isOK: false,
       failReason: {
-        period: { start: previousCheckPoint.date, end: checkPoint.date },
+        period: { start: chackpointA.date, end: checkpointB.date },
         message: this.getErrorMessage(
-          totalMovements,
-          expectedBalanceForPeriode,
+          movementsAmount,
+          expectedBalanceForPeriod,
         ),
-        amountOff: totalMovements - expectedBalanceForPeriode,
+        amountOff: movementsAmount - expectedBalanceForPeriod,
         duplicatedMovements: this.getDuplicatedMovements(movements),
       },
     };
@@ -111,13 +115,15 @@ export class ValidationService {
       }
     }
 
+    this.logger.log(`${duplicatedMovements.length} duplicated movement(s) found`);
+
     return duplicatedMovements;
   }
 
   private agregateValidationResults(
     validationResults: ValidationResult[],
-  ): GlobalValidationResult {
-    if (validationResults.every((result) => result.status)) {
+  ): ValidationResponse {
+    if (validationResults.every((result) => result.isOK)) {
       return { status: Status.OK };
     }
     return {
@@ -128,6 +134,6 @@ export class ValidationService {
 }
 
 export interface ValidationResult {
-  status: boolean;
+  isOK: boolean;
   failReason?: FailReason;
 }

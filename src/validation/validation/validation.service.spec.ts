@@ -183,7 +183,6 @@ describe('ValidationService', () => {
 
     expect(service).toBeDefined();
     expect(response.status).toBe(Status.KO);
-    console.log(response.failReasons);
     expect(response.failReasons).toContainEqual({
       period: {
         start: checkPoints[11].date,
