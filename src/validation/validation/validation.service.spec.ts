@@ -3,6 +3,7 @@ import { ValidationService } from './validation.service';
 import { Movement } from './model/movement.dto';
 import { Checkpoint } from './model/checkpoint.dto';
 import { Status } from './model/status.enum';
+import { BadRequestException } from '@nestjs/common';
 
 describe('ValidationService', () => {
   let service: ValidationService;
@@ -25,7 +26,6 @@ describe('ValidationService', () => {
       { id: 1, date: new Date('2020-1-2 GMT'), wording: 'op1', amount: 500 },
       { id: 2, date: new Date('2020-1-15 GMT'), wording: 'op2', amount: -200 },
       { id: 3, date: new Date('2020-1-30 GMT'), wording: 'op3', amount: 300 },
-      { id: 4, date: new Date('2020-2-2 GMT'), wording: 'op4', amount: -100 },
     ];
     //given checkpoints
     const checkPoints: Checkpoint[] = [
@@ -46,7 +46,6 @@ describe('ValidationService', () => {
       { id: 1, date: new Date('2020-1-2 GMT'), wording: 'op1', amount: 500 },
       { id: 2, date: new Date('2020-1-15 GMT'), wording: 'op2', amount: -200 },
       { id: 3, date: new Date('2020-1-30 GMT'), wording: 'op3', amount: 300 },
-      { id: 4, date: new Date('2020-2-2 GMT'), wording: 'op4', amount: -100 },
     ];
     //given checkpoints
     const checkPoints: Checkpoint[] = [
@@ -513,5 +512,28 @@ describe('ValidationService', () => {
         },
       ],
     });
+  });
+
+  it('should throw bad request if movements out of period', () => {
+    //given movements on two months
+    const movements: Movement[] = [
+      { id: 1, date: new Date('2020-1-2 GMT'), wording: 'op1', amount: 500 },
+      { id: 2, date: new Date('2020-1-15 GMT'), wording: 'op2', amount: -200 },
+      { id: 3, date: new Date('2020-1-30 GMT'), wording: 'op3', amount: 300 },
+      { id: 4, date: new Date('2020-2-2 GMT'), wording: 'op4', amount: -100 },
+    ];
+    //given checkpoints
+    const checkPoints: Checkpoint[] = [
+      { date: new Date('2020-1-1 GMT'), balance: 0 },
+      { date: new Date('2020-2-1 GMT'), balance: 600 },
+    ];
+
+    expect(() => {
+      service.validateMovements(movements, checkPoints);
+    }).toThrowError(
+      new BadRequestException(
+        'Movements with following ids are out of analyzed period: 4',
+      ),
+    );
   });
 });

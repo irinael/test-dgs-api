@@ -27,11 +27,11 @@ export class ValidationController {
   @ApiResponse({
     status: 200,
     type: ValidationResponse,
-    description: 'Validation result',
+    description: 'ValidationResponse',
   })
   @ApiBadRequestResponse({
     description:
-      'Movements must contain at least 1 elements. Checkpoints must contain at least 2 elements.',
+      'Movements must contain at least 1 elements. Checkpoints must contain at least 2 elements.\n\nAll movements mus be in the period defined by the checkpoints.',
   })
   async validateMovements(
     @Body() validationRequest: ValidationRequest,

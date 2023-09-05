@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Movement } from './model/movement.dto';
 import { Checkpoint } from './model/checkpoint.dto';
 import { ValidationResponse } from './model/validation-response.dto';
@@ -10,11 +10,26 @@ export class ValidationService {
   private readonly logger = new Logger(ValidationService.name);
 
   validateMovements(
-    movements: Movement[],
+    movementsToValidate: Movement[],
     checkPoints: Checkpoint[],
   ): ValidationResponse {
+    const movementsOutOfPeriod = movementsToValidate.filter((movement) => {
+      return (
+        movement.date < checkPoints[0].date ||
+        movement.date > checkPoints[checkPoints.length - 1].date
+      );
+    });
+
+    if (movementsOutOfPeriod.length > 0) {
+      this.manageMovementsOutOfPeriod(movementsOutOfPeriod);
+
+      movementsToValidate = movementsToValidate.filter(
+        (movement) => !movementsOutOfPeriod.includes(movement),
+      );
+    }
+
     const validationResults = this.computeValidationResults(
-      movements,
+      movementsToValidate,
       checkPoints,
     );
 
@@ -23,6 +38,15 @@ export class ValidationService {
     );
 
     return this.agregateValidationResults(validationResults);
+  }
+
+  private manageMovementsOutOfPeriod(movementsOutOfPeriod: Movement[]): void {
+    const movementsOutOfPeriodIds = movementsOutOfPeriod.map(
+      (movement) => movement.id,
+    );
+    throw new BadRequestException(
+      `Movements with following ids are out of analyzed period: ${movementsOutOfPeriodIds}`,
+    );
   }
 
   private computeValidationResults(
@@ -115,7 +139,9 @@ export class ValidationService {
       }
     }
 
-    this.logger.log(`${duplicatedMovements.length} duplicated movement(s) found`);
+    this.logger.log(
+      `${duplicatedMovements.length} duplicated movement(s) found`,
+    );
 
     return duplicatedMovements;
   }
