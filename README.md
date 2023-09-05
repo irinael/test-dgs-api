@@ -2,6 +2,8 @@
 
 MS allowing to check the validity of bank operations accoring to checkpoints
 
+Applicaton runs locally on http://localhost:3000
+
 Documentation available here : http://localhost:3000/api (after npm run start)
 
 ## Installation
